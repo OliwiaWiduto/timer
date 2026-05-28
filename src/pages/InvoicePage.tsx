@@ -6,6 +6,8 @@ import type { Database } from "@/types/database";
 import { downloadInvoicePdf } from "@/lib/invoicePdf";
 import { formatClock, formatDateTime, formatMoney, formatShortDate } from "@/lib/format";
 import { IconChevronLeft } from "@/components/icons";
+import { Toast } from "@/components/Toast";
+import { useToast } from "@/hooks/useToast";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"] & {
@@ -94,6 +96,7 @@ export function InvoicePage() {
   const [startDate, setStartDate] = useState(() => getMonthRangeIso().startIso);
   const [endDate, setEndDate] = useState(() => getMonthRangeIso().endIso);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { toast, showToast } = useToast(2000);
 
   const load = useCallback(async () => {
     if (!user || !projectId) return;
@@ -188,7 +191,12 @@ export function InvoicePage() {
       p_session_ids: ids,
     });
     if (rpcErr || !invoiceId) {
-      setError(rpcErr?.message ?? "Could not create invoice.");
+      const msg = rpcErr?.message ?? "Could not create invoice.";
+      if (msg.includes("Invalid or already billed session in selection")) {
+        showToast("Invalid or already billed session in selection");
+      } else {
+        setError(msg);
+      }
       setBusy(false);
       return;
     }
@@ -423,6 +431,7 @@ export function InvoicePage() {
           ) : null}
         </div>
       </div>
+      <Toast message={toast} />
     </div>
   );
 }

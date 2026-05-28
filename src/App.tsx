@@ -6,6 +6,7 @@ import { MainPage } from "@/pages/MainPage";
 import { LogsPage } from "@/pages/LogsPage";
 import { InvoicePage } from "@/pages/InvoicePage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
+import { InvoicePreviewPage } from "@/pages/InvoicePreviewPage";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 function ProtectedLayout() {
@@ -51,6 +52,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {import.meta.env.DEV ? <Route path="/invoice-preview" element={<InvoicePreviewPage />} /> : null}
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<MainPage />} />
         <Route path="/projects" element={<ProjectsPage />} />

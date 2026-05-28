@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatDateTime, formatMoney, formatShortDate } from "@/lib/format";
+import { formatMoney, formatShortDate } from "@/lib/format";
 
 export type InvoicePdfSessionRow = {
   startedAt: string;
@@ -10,7 +10,7 @@ export type InvoicePdfSessionRow = {
   lineTotal: number;
 };
 
-type BuildArgs = {
+export type InvoicePdfBuildArgs = {
   projectName: string;
   clientName: string | null;
   clientEmail: string | null;
@@ -22,7 +22,7 @@ type BuildArgs = {
   total: number;
 };
 
-export function buildInvoicePdfDoc(args: BuildArgs): jsPDF {
+export function buildInvoicePdfDoc(args: InvoicePdfBuildArgs): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const margin = 48;
   let y = margin;
@@ -61,8 +61,6 @@ export function buildInvoicePdfDoc(args: BuildArgs): jsPDF {
   y += 22;
 
   const tableBody = args.rows.map((r) => [
-    formatDateTime(r.startedAt),
-    formatDateTime(r.endedAt),
     r.description || "—",
     r.hours.toFixed(2),
     formatMoney(r.lineTotal, args.currency),
@@ -70,13 +68,14 @@ export function buildInvoicePdfDoc(args: BuildArgs): jsPDF {
 
   autoTable(doc, {
     startY: y,
-    head: [["Start", "End", "Description", "Hours", "Amount"]],
+    head: [["Description", "Hours", "Amount"]],
     body: tableBody,
     styles: { fontSize: 9, cellPadding: 6 },
-    headStyles: { fillColor: [37, 99, 235] },
+    headStyles: { fillColor: [64, 64, 64], textColor: [255, 255, 255] },
     columnStyles: {
-      3: { halign: "right" },
-      4: { halign: "right" },
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 56 },
+      2: { halign: "right", cellWidth: 72 },
     },
   });
 
@@ -91,7 +90,7 @@ export function buildInvoicePdfDoc(args: BuildArgs): jsPDF {
   return doc;
 }
 
-export function downloadInvoicePdf(args: BuildArgs, fileName: string) {
+export function downloadInvoicePdf(args: InvoicePdfBuildArgs, fileName: string) {
   const doc = buildInvoicePdfDoc(args);
   doc.save(fileName);
 }
