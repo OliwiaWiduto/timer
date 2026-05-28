@@ -49,6 +49,10 @@ npm run build        # Web production build
 npm run tauri:build  # Platform app bundle
 ```
 
+## Desktop releases & auto-update
+
+macOS builds and in-app updates use GitHub Releases. See **[docs/RELEASES.md](docs/RELEASES.md)** for signing keys, GitHub secrets, and how to publish `v*` tags.
+
 ## Notes
 
 - **Billing**: `finalize_invoice` marks selected sessions as billed and creates `invoices` + `invoice_lines` in one transaction. Only `billing_status = unbilled` rows for the chosen project are accepted.

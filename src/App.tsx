@@ -8,6 +8,7 @@ import { InvoicePage } from "@/pages/InvoicePage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { InvoicePreviewPage } from "@/pages/InvoicePreviewPage";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { UpdateChecker } from "@/components/UpdateChecker";
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
@@ -43,6 +44,7 @@ function ProtectedLayout() {
   }
   return (
     <TimerProvider>
+      <UpdateChecker />
       <Outlet />
     </TimerProvider>
   );
