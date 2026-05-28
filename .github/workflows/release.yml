@@ -36,25 +36,34 @@ jobs:
         run: |
           mkdir -p "$HOME/.tauri"
           printf '%s' "$SIGNING_KEY" > "$HOME/.tauri/freelance-timer.key"
-          echo "TAURI_SIGNING_PRIVATE_KEY=$HOME/.tauri/freelance-timer.key" >> "$GITHUB_ENV"
-          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$HOME/.tauri/freelance-timer.key" >> "$GITHUB_ENV"
+          echo "SIGNING_KEY_PATH=$HOME/.tauri/freelance-timer.key" >> "$GITHUB_ENV"
 
-      - name: Build and release
-        uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri app
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PATH }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SIGNING_KEY_PATH: ${{ env.SIGNING_KEY_PATH }}
+        run: |
+          export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY_PATH"
+          export TAURI_SIGNING_PRIVATE_KEY_PATH="$SIGNING_KEY_PATH"
+          npm run tauri build -- --target aarch64-apple-darwin --bundles app
+
+      - name: Generate latest.json
+        env:
+          VERSION: ${{ github.ref_name }}
+          TAG: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BUNDLE_DIR: src-tauri/target/aarch64-apple-darwin/release/bundle/macos
+        run: node scripts/generate-latest-json.mjs
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Freelance Timer ${{ github.ref_name }}
-          releaseBody: "macOS (Apple Silicon) build with in-app auto-update."
-          releaseDraft: false
-          prerelease: false
-          tauriScript: npm run tauri
-          # DMG script is flaky on CI; .app + .tar.gz (updater) are enough.
-          args: --target aarch64-apple-darwin --bundles app
-          includeUpdaterJson: true
+          tag_name: ${{ github.ref_name }}
+          name: Freelance Timer ${{ github.ref_name }}
+          body: macOS (Apple Silicon) build with in-app auto-update.
+          draft: false
+          files: |
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Freelance Timer.app.tar.gz
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Freelance Timer.app.tar.gz.sig
+            latest.json
