@@ -12,13 +12,20 @@ create table public.projects (
   client_email text,
   billing_address text,
   hourly_rate numeric(12, 2) not null default 0,
-  currency text not null default 'USD',
+  currency text not null default 'GBP',
+  avatar_color text,
+  avatar_initial text,
   last_logged_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index projects_user_last_logged on public.projects (user_id, last_logged_at desc nulls last);
+
+alter table public.projects
+  add constraint projects_avatar_initial_len check (
+    avatar_initial is null or char_length(avatar_initial) <= 1
+  );
 
 -- Invoices (always for a single project) ------------------------------------
 create table public.invoices (

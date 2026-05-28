@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTimer } from "@/contexts/TimerContext";
 import type { Database } from "@/types/database";
-import { NewProjectModal } from "@/components/NewProjectModal";
 import { StopSessionModal } from "@/components/StopSessionModal";
 import { formatClock } from "@/lib/format";
 import { IconClose, IconPause, IconPlay } from "@/components/icons";
@@ -17,7 +16,6 @@ export function MainPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newOpen, setNewOpen] = useState(false);
   const [savingStop, setSavingStop] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
 
@@ -183,9 +181,9 @@ export function MainPage() {
               paddingRight: 16,
             }}
           >
-            <button type="button" className="sv-link sv-link-btn" onClick={() => setNewOpen(true)}>
-              Add new project
-            </button>
+            <Link to="/projects" className="sv-link sv-link-btn">
+              Projects
+            </Link>
             <button
               type="button"
               className="sv-label sv-label--muted"
@@ -203,8 +201,6 @@ export function MainPage() {
           </div>
         </div>
       </div>
-
-      <NewProjectModal open={newOpen} onClose={() => setNewOpen(false)} onCreated={() => void loadProjects()} />
 
       {timer.stopDraft ? (
         <StopSessionModal

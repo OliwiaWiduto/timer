@@ -19,6 +19,8 @@ export type Database = {
           billing_address: string | null;
           hourly_rate: number;
           currency: string;
+          avatar_color: string | null;
+          avatar_initial: string | null;
           last_logged_at: string | null;
           created_at: string;
           updated_at: string;
@@ -32,6 +34,8 @@ export type Database = {
           billing_address?: string | null;
           hourly_rate?: number;
           currency?: string;
+          avatar_color?: string | null;
+          avatar_initial?: string | null;
           last_logged_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -45,6 +49,8 @@ export type Database = {
           billing_address?: string | null;
           hourly_rate?: number;
           currency?: string;
+          avatar_color?: string | null;
+          avatar_initial?: string | null;
           last_logged_at?: string | null;
           created_at?: string;
           updated_at?: string;

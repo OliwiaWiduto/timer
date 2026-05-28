@@ -5,6 +5,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { MainPage } from "@/pages/MainPage";
 import { LogsPage } from "@/pages/LogsPage";
 import { InvoicePage } from "@/pages/InvoicePage";
+import { ProjectsPage } from "@/pages/ProjectsPage";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 function ProtectedLayout() {
@@ -52,6 +53,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<MainPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/invoice/:projectId" element={<InvoicePage />} />
       </Route>

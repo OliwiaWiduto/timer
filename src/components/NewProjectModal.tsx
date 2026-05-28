@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { IconChevronLeft } from "@/components/icons";
+import { PROJECT_AVATAR_COLORS, defaultAvatarInitial } from "@/lib/projectAvatar";
 
 type Props = {
   open: boolean;
@@ -14,7 +14,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [clientName, setClientName] = useState("");
   const [hourlyRate, setHourlyRate] = useState("100");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("GBP");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,12 +31,15 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
       setBusy(false);
       return;
     }
+    const trimmedName = name.trim();
     const { error: insErr } = await supabase.from("projects").insert({
       user_id: user.id,
-      name: name.trim(),
+      name: trimmedName,
       client_name: clientName.trim() || null,
       hourly_rate: rate,
-      currency: currency.trim() || "USD",
+      currency: currency.trim() || "GBP",
+      avatar_color: PROJECT_AVATAR_COLORS[Math.floor(Math.random() * PROJECT_AVATAR_COLORS.length)],
+      avatar_initial: defaultAvatarInitial(trimmedName),
     });
     setBusy(false);
     if (insErr) {
@@ -46,7 +49,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
     setName("");
     setClientName("");
     setHourlyRate("100");
-    setCurrency("USD");
+    setCurrency("GBP");
     onCreated();
     onClose();
   }
@@ -57,14 +60,6 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
         <div className="sv-header">
           <img className="sv-header__icon" src="/logo.png" alt="Studio Voodoo" />
           <div className="sv-header__title">Studio Voodoo Timer</div>
-        </div>
-
-        <div className="sv-topbar">
-          <button type="button" className="sv-icon-btn sv-icon-btn--ghost" onClick={onClose} aria-label="Back">
-            <IconChevronLeft />
-          </button>
-          <div className="sv-topbar__title">Add new project</div>
-          <div style={{ width: 24 }} aria-hidden="true" />
         </div>
 
         <div className="sv-form">

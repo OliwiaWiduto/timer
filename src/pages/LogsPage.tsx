@@ -3,13 +3,21 @@ import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/types/database";
-import { formatClock } from "@/lib/format";
+import { formatHoursMinutes } from "@/lib/format";
 import { IconChevronLeft, IconTrash } from "@/components/icons";
 import { format } from "date-fns";
+import { EditSessionModal } from "@/components/EditSessionModal";
+import { Toast } from "@/components/Toast";
+import { useToast } from "@/hooks/useToast";
 
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"] & {
-  projects: { name: string } | null;
+  projects: Pick<
+    Database["public"]["Tables"]["projects"]["Row"],
+    "name" | "avatar_color" | "avatar_initial" | "id"
+  > | null;
 };
+
+import { projectAvatarDisplay } from "@/lib/projectAvatar";
 
 export function LogsPage() {
   const { user } = useAuth();
@@ -19,6 +27,9 @@ export function LogsPage() {
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useToast(2000);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSession, setEditSession] = useState<Database["public"]["Tables"]["sessions"]["Row"] | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -26,7 +37,7 @@ export function LogsPage() {
     setError(null);
     const { data, error } = await supabase
       .from("sessions")
-      .select("*, projects(name)")
+      .select("*, projects(id, name, avatar_color, avatar_initial)")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) {
@@ -41,17 +52,21 @@ export function LogsPage() {
     async (id: string) => {
       if (!user) return;
       setBusyId(id);
-      setError(null);
       const { error } = await supabase.from("sessions").delete().eq("id", id);
       setBusyId(null);
       if (error) {
         console.error(error);
-        setError(error.message);
+        const msg =
+          (error as unknown as { code?: string }).code === "23503" ||
+          error.message.includes("invoice_lines_session_id_fkey")
+            ? "This session is on an invoice and can’t be deleted."
+            : error.message;
+        showToast(msg);
         return;
       }
       setRows((prev) => prev.filter((r) => r.id !== id));
     },
-    [user],
+    [user, showToast],
   );
 
   useEffect(() => {
@@ -177,15 +192,47 @@ export function LogsPage() {
               {filtered.map((r) => {
                 const start = new Date(r.started_at);
                 const end = new Date(r.ended_at);
-                const title = `${format(start, "MMM d, H:mm")} - ${format(end, "H:mm")}`;
+                const sameDay =
+                  start.getFullYear() === end.getFullYear() &&
+                  start.getMonth() === end.getMonth() &&
+                  start.getDate() === end.getDate();
+                const title = sameDay
+                  ? `${format(start, "MMM d, H:mm")} - ${format(end, "H:mm")}`
+                  : `${format(start, "MMM d, H:mm")} - ${format(end, "MMM d, H:mm")}`;
+                const projectName = r.projects?.name ?? "Project";
+                const avatar = r.projects
+                  ? projectAvatarDisplay(r.projects)
+                  : projectAvatarDisplay({ id: r.project_id, name: projectName, avatar_color: null, avatar_initial: null });
                 return (
-                  <div key={r.id} className="sv-row">
+                  <div
+                    key={r.id}
+                    className="sv-row"
+                    role="button"
+                    tabIndex={0}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      setEditSession(r);
+                      setEditOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setEditSession(r);
+                        setEditOpen(true);
+                      }
+                    }}
+                  >
+                    {projectFilter === "all" ? (
+                      <div className="sv-avatar" style={{ background: avatar.color }} aria-label={`Project ${projectName}`}>
+                        {avatar.initial}
+                      </div>
+                    ) : null}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                         <div className="sv-label" style={{ whiteSpace: "normal" }}>
                           {title}
                         </div>
-                        <div className="sv-time">{formatClock(r.duration_seconds).slice(3)}</div>
+                        <div className="sv-time">{formatHoursMinutes(r.duration_seconds)}</div>
                       </div>
                       <div
                         className="sv-label sv-label--muted"
@@ -199,7 +246,14 @@ export function LogsPage() {
                       className="sv-icon-btn sv-icon-btn--ghost sv-row__delete"
                       aria-label="Delete log"
                       disabled={busyId === r.id}
-                      onClick={() => onDelete(r.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (r.billing_status === "billed" || r.invoice_id) {
+                          showToast("This session is on an invoice and can’t be deleted.");
+                          return;
+                        }
+                        void onDelete(r.id);
+                      }}
                     >
                       <IconTrash size={16} />
                     </button>
@@ -208,6 +262,17 @@ export function LogsPage() {
               })}
             </div>
           ) : null}
+
+          <EditSessionModal
+            open={editOpen}
+            session={editSession}
+            onClose={() => setEditOpen(false)}
+            onSaved={(next) => {
+              setRows((prev) => prev.map((r) => (r.id === next.id ? ({ ...r, ...next } as SessionRow) : r)));
+            }}
+          />
+
+          <Toast message={toast} />
         </div>
       </div>
     </div>
