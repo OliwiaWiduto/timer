@@ -30,24 +30,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Setup updater signing key
-        env:
-          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        run: |
-          mkdir -p "$HOME/.tauri"
-          printf '%s' "$SIGNING_KEY" > "$HOME/.tauri/freelance-timer.key"
-          echo "SIGNING_KEY_PATH=$HOME/.tauri/freelance-timer.key" >> "$GITHUB_ENV"
-
       - name: Build Tauri app
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          SIGNING_KEY_PATH: ${{ env.SIGNING_KEY_PATH }}
-        run: |
-          export TAURI_SIGNING_PRIVATE_KEY_PATH="$SIGNING_KEY_PATH"
-          export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
-          unset TAURI_SIGNING_PRIVATE_KEY
-          npm run tauri build -- --target aarch64-apple-darwin --bundles app
+          # Tauri expects the key file *contents* here, not a path (see docs/RELEASES.md).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: npm run tauri build -- --target aarch64-apple-darwin --bundles app
 
       - name: Generate latest.json
         env:

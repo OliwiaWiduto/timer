@@ -19,8 +19,8 @@ In **GitHub → OliwiaWiduto/timer → Settings → Secrets and variables → Ac
 
 | Secret | Value |
 |--------|--------|
-| `TAURI_SIGNING_PRIVATE_KEY` | Full contents of `~/.tauri/freelance-timer.key` (paste the entire file, including newlines — CI writes it to disk) |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Leave empty if the key has no password (omit the secret or use an empty value) |
+| `TAURI_SIGNING_PRIVATE_KEY` | Full contents of `~/.tauri/freelance-timer.key` (paste the entire file from `cat ~/.tauri/freelance-timer.key`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Do not create this secret (key has no password). The workflow sets it to empty in CI. |
 | `VITE_SUPABASE_URL` | Same as your local `.env` |
 | `VITE_SUPABASE_ANON_KEY` | Same as your local `.env` |
 
@@ -49,9 +49,9 @@ Users with a previous updater-enabled build will see a prompt on next launch whe
 ## Local signed build (optional)
 
 ```bash
-export TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/freelance-timer.key"
+export TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/freelance-timer.key")"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
-npm run tauri:build
+npm run tauri build -- --target aarch64-apple-darwin --bundles app
 ```
 
 Updater artifacts appear under `src-tauri/target/release/bundle/macos/` (`*.app.tar.gz` + `*.sig`).
