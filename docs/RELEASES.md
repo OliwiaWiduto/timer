@@ -19,8 +19,8 @@ In **GitHub → OliwiaWiduto/timer → Settings → Secrets and variables → Ac
 
 | Secret | Value |
 |--------|--------|
-| `TAURI_SIGNING_PRIVATE_KEY` | Full contents of `~/.tauri/freelance-timer.key` (the whole file as one secret) |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Leave empty (single space or empty string) if the key has no password |
+| `TAURI_SIGNING_PRIVATE_KEY` | Full contents of `~/.tauri/freelance-timer.key` (paste the entire file, including newlines — CI writes it to disk) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Leave empty if the key has no password (omit the secret or use an empty value) |
 | `VITE_SUPABASE_URL` | Same as your local `.env` |
 | `VITE_SUPABASE_ANON_KEY` | Same as your local `.env` |
 
