@@ -146,6 +146,47 @@ export type Database = {
           },
         ];
       };
+      active_timers: {
+        Row: {
+          user_id: string;
+          project_id: string;
+          phase: "running" | "paused";
+          wall_started_at: string;
+          accumulated_ms: number;
+          run_started_at: string | null;
+          stop_draft: Json | null;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          project_id: string;
+          phase: "running" | "paused";
+          wall_started_at: string;
+          accumulated_ms?: number;
+          run_started_at?: string | null;
+          stop_draft?: Json | null;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          project_id?: string;
+          phase?: "running" | "paused";
+          wall_started_at?: string;
+          accumulated_ms?: number;
+          run_started_at?: string | null;
+          stop_draft?: Json | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "active_timers_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       invoice_lines: {
         Row: {
           id: string;

@@ -9,6 +9,19 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import {
+  applyPersistedToState,
+  clearActiveTimer,
+  clearLegacyLocalTimer,
+  fetchActiveTimer,
+  parseActiveTimerRow,
+  readLegacyLocalTimer,
+  subscribeActiveTimer,
+  upsertActiveTimer,
+  type ActiveTimerRow,
+  type PersistedTimer,
+} from "@/lib/activeTimerSync";
 
 export type TimerPhase = "idle" | "running" | "paused";
 
@@ -17,14 +30,6 @@ export type StopDraft = {
   startedAt: Date;
   endedAt: Date;
   durationSeconds: number;
-};
-
-type PersistedTimer = {
-  projectId: string;
-  wallStartedAt: string;
-  phase: TimerPhase;
-  accumulatedMs: number;
-  runStartedAt: string | null;
 };
 
 type TimerContextValue = {
@@ -36,42 +41,16 @@ type TimerContextValue = {
   play: (projectId: string) => void;
   pause: () => void;
   resume: () => void;
-  /** Freeze timer and capture a draft for the description sheet. */
   openStopSheet: () => boolean;
-  /** Resume timing after canceling the stop sheet. */
   cancelStopSheet: () => void;
-  /** Reset timer after a session is saved to the server. */
   completeStopAfterSave: () => void;
   clear: () => void;
   error: string | null;
   dismissError: () => void;
+  syncing: boolean;
 };
 
 const TimerContext = createContext<TimerContextValue | null>(null);
-
-function storageKey(userId: string) {
-  return `freelance-timer-active:${userId}`;
-}
-
-function readPersisted(userId: string): PersistedTimer | null {
-  try {
-    const raw = localStorage.getItem(storageKey(userId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistedTimer;
-    if (!parsed || typeof parsed !== "object") return null;
-    if (parsed.phase !== "running" && parsed.phase !== "paused") return null;
-    if (!parsed.projectId || !parsed.wallStartedAt) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writePersisted(userId: string, state: PersistedTimer | null) {
-  const key = storageKey(userId);
-  if (!state) localStorage.removeItem(key);
-  else localStorage.setItem(key, JSON.stringify(state));
-}
 
 function computeElapsedMs(
   phase: TimerPhase,
@@ -86,6 +65,22 @@ function computeElapsedMs(
   return ms;
 }
 
+function toPersisted(
+  phase: "running" | "paused",
+  activeProjectId: string,
+  wallStartedAt: Date,
+  accumulatedMs: number,
+  runStartedAt: Date | null,
+): PersistedTimer {
+  return {
+    projectId: activeProjectId,
+    wallStartedAt: wallStartedAt.toISOString(),
+    phase,
+    accumulatedMs,
+    runStartedAt: runStartedAt ? runStartedAt.toISOString() : null,
+  };
+}
+
 export function TimerProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [phase, setPhase] = useState<TimerPhase>("idle");
@@ -96,15 +91,60 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [stopDraft, setStopDraft] = useState<StopDraft | null>(null);
   const [tick, setTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  const lastAppliedAtRef = useRef(0);
+  const skipNextPersistRef = useRef(false);
   const userIdRef = useRef<string | null>(null);
 
   const dismissError = useCallback(() => setError(null), []);
 
-  const persist = useCallback(
-    (next: PersistedTimer | null) => {
+  const applyRemoteRow = useCallback((row: ActiveTimerRow | null) => {
+    const { persisted, stopDraft: remoteDraft, updatedAt } = parseActiveTimerRow(row);
+    if (updatedAt > 0 && updatedAt < lastAppliedAtRef.current) return;
+    if (updatedAt > 0) lastAppliedAtRef.current = updatedAt;
+
+    skipNextPersistRef.current = true;
+
+    if (!persisted) {
+      setPhase("idle");
+      setActiveProjectId(null);
+      setWallStartedAt(null);
+      setAccumulatedMs(0);
+      setRunStartedAt(null);
+      setStopDraft(null);
+      return;
+    }
+
+    const next = applyPersistedToState(persisted);
+    setActiveProjectId(next.activeProjectId);
+    setWallStartedAt(next.wallStartedAt);
+    setAccumulatedMs(next.accumulatedMs);
+    setRunStartedAt(next.runStartedAt);
+    setPhase(next.phase);
+    setStopDraft(remoteDraft);
+  }, []);
+
+  const syncToServer = useCallback(
+    async (persisted: PersistedTimer | null, draft: StopDraft | null) => {
       const uid = user?.id;
       if (!uid) return;
-      writePersisted(uid, next);
+      setSyncing(true);
+      try {
+        if (!persisted) {
+          await clearActiveTimer(uid);
+          lastAppliedAtRef.current = Date.now();
+        } else {
+          const row = await upsertActiveTimer(uid, persisted, draft);
+          if (row?.updated_at) lastAppliedAtRef.current = new Date(row.updated_at).getTime();
+        }
+      } catch (e) {
+        console.error(e);
+        setError(e instanceof Error ? e.message : "Could not sync timer.");
+      } finally {
+        setSyncing(false);
+      }
     },
     [user?.id],
   );
@@ -118,44 +158,102 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       setAccumulatedMs(0);
       setRunStartedAt(null);
       setStopDraft(null);
+      setHydrated(false);
     }
     userIdRef.current = uid;
-    if (!uid) return;
-    const saved = readPersisted(uid);
-    if (!saved) return;
-    setActiveProjectId(saved.projectId);
-    setWallStartedAt(new Date(saved.wallStartedAt));
-    setAccumulatedMs(saved.accumulatedMs);
-    setRunStartedAt(saved.runStartedAt ? new Date(saved.runStartedAt) : null);
-    setPhase(saved.phase);
-  }, [user?.id]);
 
-  useEffect(() => {
-    if (phase !== "running" || stopDraft) return;
-    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
-    return () => window.clearInterval(id);
-  }, [phase, stopDraft]);
-
-  useEffect(() => {
-    const uid = user?.id;
-    if (!uid) return;
-    if (phase === "idle" || stopDraft) {
-      if (phase === "idle") persist(null);
+    if (!uid) {
+      setHydrated(true);
       return;
     }
-    persist({
-      projectId: activeProjectId!,
-      wallStartedAt: wallStartedAt!.toISOString(),
-      phase,
-      accumulatedMs,
-      runStartedAt: runStartedAt ? runStartedAt.toISOString() : null,
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const row = await fetchActiveTimer(uid);
+        if (cancelled) return;
+        if (row) {
+          applyRemoteRow(row);
+        } else {
+          const legacy = readLegacyLocalTimer(uid);
+          if (legacy) {
+            const next = applyPersistedToState(legacy);
+            setActiveProjectId(next.activeProjectId);
+            setWallStartedAt(next.wallStartedAt);
+            setAccumulatedMs(next.accumulatedMs);
+            setRunStartedAt(next.runStartedAt);
+            setPhase(next.phase);
+            await syncToServer(legacy, null);
+            clearLegacyLocalTimer(uid);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setError(e instanceof Error ? e.message : "Could not load timer.");
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+
+    const channel = subscribeActiveTimer(uid, (row) => {
+      if (!cancelled) applyRemoteRow(row);
     });
-  }, [user?.id, phase, activeProjectId, wallStartedAt, accumulatedMs, runStartedAt, persist, stopDraft]);
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetchActiveTimer(uid)
+        .then((row) => {
+          if (!cancelled) applyRemoteRow(row);
+        })
+        .catch(console.error);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, applyRemoteRow, syncToServer]);
+
+  useEffect(() => {
+    if (!hydrated || phase !== "running" || stopDraft) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [hydrated, phase, stopDraft]);
+
+  useEffect(() => {
+    if (!hydrated || !user?.id) return;
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
+    if (phase === "idle" && !stopDraft) {
+      void syncToServer(null, null);
+      return;
+    }
+    if (phase === "idle" || !activeProjectId || !wallStartedAt) return;
+
+    void syncToServer(
+      toPersisted(phase, activeProjectId, wallStartedAt, accumulatedMs, runStartedAt),
+      stopDraft,
+    );
+  }, [
+    hydrated,
+    user?.id,
+    phase,
+    activeProjectId,
+    wallStartedAt,
+    accumulatedMs,
+    runStartedAt,
+    stopDraft,
+    syncToServer,
+  ]);
 
   const elapsedMs = useMemo(() => {
     if (phase === "idle" || !activeProjectId || !wallStartedAt) return 0;
-    const now = Date.now();
-    return computeElapsedMs(phase, accumulatedMs, runStartedAt, now);
+    return computeElapsedMs(phase, accumulatedMs, runStartedAt, Date.now());
   }, [phase, activeProjectId, wallStartedAt, accumulatedMs, runStartedAt, tick, stopDraft]);
 
   const play = useCallback(
@@ -165,6 +263,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         setError("Sign in to start a timer.");
         return;
       }
+      if (!hydrated) return;
       if (stopDraft) {
         setError("Finish or cancel the session description first.");
         return;
@@ -186,7 +285,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       setRunStartedAt(now);
       setPhase("running");
     },
-    [user?.id, phase, activeProjectId, stopDraft],
+    [user?.id, hydrated, phase, activeProjectId, stopDraft],
   );
 
   const pause = useCallback(() => {
@@ -242,8 +341,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setWallStartedAt(null);
     setAccumulatedMs(0);
     setRunStartedAt(null);
-    if (user?.id) writePersisted(user.id, null);
-  }, [user?.id]);
+  }, []);
 
   const clear = useCallback(() => {
     setStopDraft(null);
@@ -252,8 +350,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setWallStartedAt(null);
     setAccumulatedMs(0);
     setRunStartedAt(null);
-    if (user?.id) writePersisted(user.id, null);
-  }, [user?.id]);
+  }, []);
 
   const value = useMemo<TimerContextValue>(
     () => ({
@@ -271,6 +368,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       clear,
       error,
       dismissError,
+      syncing,
     }),
     [
       phase,
@@ -287,6 +385,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       clear,
       error,
       dismissError,
+      syncing,
     ],
   );
 
