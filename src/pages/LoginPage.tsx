@@ -14,10 +14,24 @@ export function LoginPage() {
 
   if (!isSupabaseConfigured) {
     return (
-      <div style={{ padding: 24, maxWidth: 420, margin: "10vh auto" }}>
-        <h1>Freelance Timer</h1>
-        <p>Add Supabase environment variables to sign in.</p>
-        <Link to="/">Home</Link>
+      <div className="sv-app">
+        <div className="sv-card" style={{ width: 420 }}>
+          <div className="sv-header">
+            <img className="sv-header__icon" src="/logo.png" alt="Studio Voodoo" />
+            <div className="sv-header__title">Studio Voodoo Timer</div>
+          </div>
+          <div className="sv-form">
+            <div className="sv-label" style={{ fontFamily: "Inter", fontSize: 14, fontWeight: 500 }}>
+              Configure Supabase
+            </div>
+            <div className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12 }}>
+              Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to `.env`, then restart the dev server.
+            </div>
+            <Link to="/" className="sv-link">
+              Home
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -45,70 +59,73 @@ export function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: "10vh auto", padding: 24 }}>
-      <h1 style={{ marginTop: 0 }}>Freelance Timer</h1>
-      <p style={{ color: "#475569" }}>Sign in to sync projects and time entries across your Macs.</p>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button
-          type="button"
-          onClick={() => setMode("signin")}
-          style={{
-            flex: 1,
-            padding: "0.5rem",
-            borderRadius: 8,
-            border: mode === "signin" ? "2px solid #2563eb" : "1px solid #cbd5e1",
-            background: mode === "signin" ? "#eff6ff" : "#fff",
-          }}
-        >
-          Sign in
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("signup")}
-          style={{
-            flex: 1,
-            padding: "0.5rem",
-            borderRadius: 8,
-            border: mode === "signup" ? "2px solid #2563eb" : "1px solid #cbd5e1",
-            background: mode === "signup" ? "#eff6ff" : "#fff",
-          }}
-        >
-          Create account
-        </button>
+    <div className="sv-app">
+      <div className="sv-card" style={{ width: 420 }}>
+        <div className="sv-header">
+          <img className="sv-header__icon" src="/logo.png" alt="Studio Voodoo" />
+          <div className="sv-header__title">Studio Voodoo Timer</div>
+        </div>
+
+        <div className="sv-form">
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              className={`sv-btn ${mode === "signin" ? "sv-btn--primary" : ""}`}
+              onClick={() => setMode("signin")}
+              style={{ flex: 1 }}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className={`sv-btn ${mode === "signup" ? "sv-btn--primary" : ""}`}
+              onClick={() => setMode("signup")}
+              style={{ flex: 1 }}
+            >
+              Create account
+            </button>
+          </div>
+
+          <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+            <label style={{ display: "grid", gap: 8 }}>
+              <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
+                Email
+              </span>
+              <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </label>
+            <label style={{ display: "grid", gap: 8 }}>
+              <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
+                Password
+              </span>
+              <input
+                type="password"
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </label>
+            {error ? (
+              <p style={{ color: "rgba(255,255,255,0.85)", margin: 0 }} role="alert">
+                {error}
+              </p>
+            ) : null}
+            {message ? (
+              <p style={{ color: "rgba(255,255,255,0.85)", margin: 0 }} role="status">
+                {message}
+              </p>
+            ) : null}
+            <button type="submit" className="sv-btn sv-btn--primary" disabled={busy}>
+              {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+            </button>
+          </form>
+
+          <Link to="/" className="sv-link">
+            Back
+          </Link>
+        </div>
       </div>
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-        <label style={{ display: "grid", gap: 4 }}>
-          <span>Email</span>
-          <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label style={{ display: "grid", gap: 4 }}>
-          <span>Password</span>
-          <input
-            type="password"
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-        </label>
-        {error ? (
-          <p style={{ color: "#b91c1c", margin: 0 }} role="alert">
-            {error}
-          </p>
-        ) : null}
-        {message ? (
-          <p style={{ color: "#15803d", margin: 0 }} role="status">
-            {message}
-          </p>
-        ) : null}
-        <button type="submit" disabled={busy} style={{ padding: "0.65rem", borderRadius: 8, fontWeight: 600 }}>
-          {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
-        </button>
-      </form>
-      <p style={{ marginTop: 24 }}>
-        <Link to="/">Back</Link>
-      </p>
     </div>
   );
 }

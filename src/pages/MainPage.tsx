@@ -1,21 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTimer } from "@/contexts/TimerContext";
 import type { Database } from "@/types/database";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { StopSessionModal } from "@/components/StopSessionModal";
-import { formatClock, formatDateTime } from "@/lib/format";
+import { formatClock } from "@/lib/format";
+import { IconClose, IconPause, IconPlay } from "@/components/icons";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export function MainPage() {
   const { user, signOut } = useAuth();
   const timer = useTimer();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [savingStop, setSavingStop] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
@@ -33,22 +34,11 @@ export function MainPage() {
       return;
     }
     setProjects(data ?? []);
-    setSelectedId((prev) => {
-      if (prev && data?.some((p) => p.id === prev)) return prev;
-      return data?.[0]?.id ?? null;
-    });
   }, [user]);
 
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
-
-  const selected = useMemo(() => projects.find((p) => p.id === selectedId) ?? null, [projects, selectedId]);
-
-  const activeLabel = useMemo(() => {
-    if (!timer.activeProjectId) return null;
-    return projects.find((p) => p.id === timer.activeProjectId)?.name ?? "Project";
-  }, [projects, timer.activeProjectId]);
 
   async function onSaveStop(description: string) {
     if (!user || !timer.stopDraft) return;
@@ -75,159 +65,144 @@ export function MainPage() {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", minHeight: "100vh" }}>
-      <aside
-        style={{
-          borderRight: "1px solid #e2e8f0",
-          background: "#fff",
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <strong>Projects</strong>
-          <button type="button" onClick={() => setNewOpen(true)} style={{ padding: "0.35rem 0.6rem", borderRadius: 8 }}>
-            + New
-          </button>
+    <div className="sv-app sv-app--shell">
+      <div className="sv-shell">
+        <div className="sv-shell__header">
+          <div className="sv-header">
+            <div className="sv-header__center">
+              <img className="sv-header__icon" src="/logo.png" alt="Studio Voodoo" />
+              <div className="sv-header__title">Studio Voodoo Timer</div>
+            </div>
+            <div className="sv-header__right">
+              <Link to="/logs" className="sv-link">
+                Project logs
+              </Link>
+            </div>
+          </div>
         </div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <Link to="/logs">All time logs</Link>
-        </nav>
-        <div style={{ flex: 1, overflow: "auto" }}>
-          {loading ? <p>Loading projects…</p> : null}
-          {!loading && projects.length === 0 ? <p style={{ color: "#64748b" }}>No projects yet.</p> : null}
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
-            {projects.map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(p.id)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "0.55rem 0.6rem",
-                    borderRadius: 8,
-                    border: p.id === selectedId ? "2px solid #2563eb" : "1px solid #e2e8f0",
-                    background: p.id === selectedId ? "#eff6ff" : "#fff",
+
+        <div className="sv-shell__content">
+          <div className="sv-list" aria-busy={loading ? "true" : "false"}>
+            {projects.map((p) => {
+              const isActive = timer.activeProjectId === p.id;
+              const isRunning = timer.phase === "running" && isActive;
+              const isPaused = timer.phase === "paused" && isActive;
+              const showTime = isActive && (timer.phase === "running" || timer.phase === "paused");
+
+              return (
+                <div
+                  key={p.id}
+                  className={`sv-row ${isActive ? "sv-row--active" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/logs?project=${p.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") navigate(`/logs?project=${p.id}`);
                   }}
+                  style={{ cursor: "pointer" }}
                 >
-                  <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>
-                    {p.client_name ? `${p.client_name} · ` : null}
-                    {p.hourly_rate} {p.currency}/hr
+                  <div className="sv-row__left">
+                    {isRunning ? (
+                      <>
+                        <button
+                          type="button"
+                          className="sv-icon-btn sv-icon-btn--primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            timer.pause();
+                          }}
+                          disabled={Boolean(timer.stopDraft)}
+                          aria-label="Pause"
+                        >
+                          <IconPause />
+                        </button>
+                        <button
+                          type="button"
+                          className="sv-icon-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!timer.openStopSheet()) return;
+                          }}
+                          disabled={Boolean(timer.stopDraft)}
+                          aria-label="Stop"
+                          title="Stop session and add a description"
+                        >
+                          <IconClose />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`sv-icon-btn ${isPaused ? "sv-icon-btn--primary" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          timer.play(p.id);
+                        }}
+                        disabled={Boolean(timer.stopDraft)}
+                        aria-label={isPaused ? "Resume" : "Play"}
+                      >
+                        <IconPlay />
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        appearance: "none",
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        color: "inherit",
+                      }}
+                    >
+                      <div className="sv-label">{p.name}</div>
+                    </button>
                   </div>
-                </button>
-              </li>
-            ))}
-          </ul>
+
+                  {showTime ? <div className="sv-time">{formatClock(timer.elapsedMs / 1000).slice(3)}</div> : null}
+                </div>
+              );
+            })}
+
+            {!loading && projects.length === 0 ? (
+              <div className="sv-row" style={{ borderBottom: "none" }}>
+                <div className="sv-label sv-label--muted">No projects yet</div>
+              </div>
+            ) : null}
+          </div>
         </div>
-        <button type="button" onClick={() => void signOut()} style={{ padding: "0.5rem", borderRadius: 8 }}>
-          Sign out
-        </button>
-      </aside>
-      <main style={{ padding: 24 }}>
-        {timer.error ? (
+
+        <div className="sv-shell__footer">
           <div
+            className="sv-footer"
             style={{
-              marginBottom: 12,
-              padding: "0.65rem 0.75rem",
-              borderRadius: 8,
-              background: "#fef2f2",
-              color: "#991b1b",
-              display: "flex",
+              paddingTop: 16,
               justifyContent: "space-between",
-              gap: 12,
+              paddingLeft: 16,
+              paddingRight: 16,
             }}
           >
-            <span>{timer.error}</span>
-            <button type="button" onClick={timer.dismissError}>
-              Dismiss
+            <button type="button" className="sv-link sv-link-btn" onClick={() => setNewOpen(true)}>
+              Add new project
+            </button>
+            <button
+              type="button"
+              className="sv-label sv-label--muted"
+              style={{
+                fontFamily: "Inter",
+                fontSize: 12,
+                letterSpacing: 0.5,
+                background: "transparent",
+                border: "none",
+              }}
+              onClick={() => void signOut()}
+            >
+              Sign out
             </button>
           </div>
-        ) : null}
-
-        {!selected ? (
-          <p>Create a project to start tracking time.</p>
-        ) : (
-          <section style={{ maxWidth: 720 }}>
-            <header style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-              <div>
-                <h1 style={{ margin: "0 0 6px" }}>{selected.name}</h1>
-                <p style={{ margin: 0, color: "#475569" }}>
-                  {selected.client_name ? <span>{selected.client_name} · </span> : null}
-                  {selected.hourly_rate} {selected.currency}/hr
-                </p>
-              </div>
-              <Link to={`/invoice/${selected.id}`} style={{ whiteSpace: "nowrap" }}>
-                Create invoice
-              </Link>
-            </header>
-
-            <div
-              style={{
-                marginTop: 24,
-                padding: 20,
-                borderRadius: 12,
-                border: "1px solid #e2e8f0",
-                background: "#fff",
-              }}
-            >
-              <div style={{ fontSize: 42, fontVariantNumeric: "tabular-nums", letterSpacing: 1 }}>
-                {formatClock(timer.elapsedMs / 1000)}
-              </div>
-              <p style={{ color: "#64748b", marginTop: 8 }}>
-                {timer.phase === "idle" && "Ready when you are."}
-                {timer.phase === "running" && timer.activeProjectId === selected.id && "Timer is running."}
-                {timer.phase === "paused" && timer.activeProjectId === selected.id && "Paused."}
-                {timer.activeProjectId && timer.activeProjectId !== selected.id && (
-                  <span>
-                    Another project is active: <strong>{activeLabel}</strong>
-                  </span>
-                )}
-              </p>
-              <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => timer.play(selected.id)}
-                  disabled={Boolean(timer.stopDraft)}
-                  style={{ padding: "0.55rem 0.9rem", borderRadius: 8, fontWeight: 600 }}
-                >
-                  {timer.phase === "paused" && timer.activeProjectId === selected.id ? "Resume" : "Play"}
-                </button>
-                <button
-                  type="button"
-                  onClick={timer.pause}
-                  disabled={timer.phase !== "running" || timer.activeProjectId !== selected.id || Boolean(timer.stopDraft)}
-                  style={{ padding: "0.55rem 0.9rem", borderRadius: 8 }}
-                >
-                  Pause
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (timer.activeProjectId !== selected.id) return;
-                    if (!timer.openStopSheet()) return;
-                  }}
-                  disabled={
-                    timer.phase === "idle" || timer.activeProjectId !== selected.id || Boolean(timer.stopDraft)
-                  }
-                  style={{ padding: "0.55rem 0.9rem", borderRadius: 8 }}
-                  title="Stop session and add a description"
-                >
-                  Stop (✕)
-                </button>
-              </div>
-              {timer.wallStartedAt && timer.activeProjectId === selected.id ? (
-                <p style={{ marginTop: 12, color: "#64748b", fontSize: 14 }}>
-                  Session started {formatDateTime(timer.wallStartedAt.toISOString())}
-                </p>
-              ) : null}
-            </div>
-          </section>
-        )}
-      </main>
+        </div>
+      </div>
 
       <NewProjectModal open={newOpen} onClose={() => setNewOpen(false)} onCreated={() => void loadProjects()} />
 

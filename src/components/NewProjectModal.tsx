@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { IconChevronLeft } from "@/components/icons";
 
 type Props = {
   open: boolean;
@@ -51,65 +52,57 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15, 23, 42, 0.45)",
-        display: "grid",
-        placeItems: "center",
-        padding: 16,
-        zIndex: 40,
-      }}
-    >
-      <form
-        onSubmit={submit}
-        style={{
-          width: "min(520px, 100%)",
-          background: "#fff",
-          borderRadius: 12,
-          padding: 20,
-          boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.35)",
-          display: "grid",
-          gap: 12,
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>New project</h2>
-        <label style={{ display: "grid", gap: 4 }}>
-          <span>Project name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} required />
-        </label>
-        <label style={{ display: "grid", gap: 4 }}>
-          <span>Client name (optional)</span>
-          <input value={clientName} onChange={(e) => setClientName(e.target.value)} />
-        </label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 10 }}>
-          <label style={{ display: "grid", gap: 4 }}>
-            <span>Hourly rate</span>
-            <input inputMode="decimal" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} required />
-          </label>
-          <label style={{ display: "grid", gap: 4 }}>
-            <span>Currency</span>
-            <input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={8} />
-          </label>
+    <div className="sv-overlay" role="dialog" aria-modal="true" aria-label="Add new project">
+      <form className="sv-modal" onSubmit={submit}>
+        <div className="sv-header">
+          <img className="sv-header__icon" src="/logo.png" alt="Studio Voodoo" />
+          <div className="sv-header__title">Studio Voodoo Timer</div>
         </div>
-        {error ? (
-          <p style={{ color: "#b91c1c", margin: 0 }} role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button type="button" onClick={onClose} disabled={busy}>
-            Close
+
+        <div className="sv-topbar">
+          <button type="button" className="sv-icon-btn sv-icon-btn--ghost" onClick={onClose} aria-label="Back">
+            <IconChevronLeft />
           </button>
-          <button
-            type="submit"
-            disabled={busy}
-            style={{ padding: "0.5rem 0.9rem", borderRadius: 8, background: "#2563eb", color: "#fff", border: "none" }}
-          >
-            {busy ? "Saving…" : "Create project"}
+          <div className="sv-topbar__title">Add new project</div>
+          <div style={{ width: 24 }} aria-hidden="true" />
+        </div>
+
+        <div className="sv-form">
+          <label style={{ display: "grid", gap: 8 }}>
+            <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
+              Name
+            </span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My new project" required />
+          </label>
+
+          <div style={{ display: "none" }}>
+            <label>
+              Client name
+              <input value={clientName} onChange={(e) => setClientName(e.target.value)} />
+            </label>
+            <label>
+              Hourly rate
+              <input inputMode="decimal" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} required />
+            </label>
+            <label>
+              Currency
+              <input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={8} />
+            </label>
+          </div>
+
+          {error ? (
+            <p style={{ color: "rgba(255,255,255,0.85)", margin: 0 }} role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="sv-actions">
+          <button type="button" className="sv-btn" onClick={onClose} disabled={busy}>
+            Discard
+          </button>
+          <button type="submit" className="sv-btn sv-btn--primary" disabled={busy}>
+            {busy ? "Saving…" : "Add project"}
           </button>
         </div>
       </form>
