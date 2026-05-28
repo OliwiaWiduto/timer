@@ -53,5 +53,6 @@ jobs:
           releaseDraft: false
           prerelease: false
           tauriScript: npm run tauri
-          args: --target aarch64-apple-darwin
+          # DMG script is flaky on CI; .app + .tar.gz (updater) are enough.
+          args: --target aarch64-apple-darwin --bundles app
           includeUpdaterJson: true
