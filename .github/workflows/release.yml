@@ -44,8 +44,9 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           SIGNING_KEY_PATH: ${{ env.SIGNING_KEY_PATH }}
         run: |
-          export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY_PATH"
           export TAURI_SIGNING_PRIVATE_KEY_PATH="$SIGNING_KEY_PATH"
+          export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+          unset TAURI_SIGNING_PRIVATE_KEY
           npm run tauri build -- --target aarch64-apple-darwin --bundles app
 
       - name: Generate latest.json
