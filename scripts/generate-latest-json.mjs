@@ -21,7 +21,9 @@ if (!fs.existsSync(tarPath) || !fs.existsSync(sigPath)) {
 }
 
 const signature = fs.readFileSync(sigPath, "utf8").trim();
-const url = `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(tarName)}`;
+// GitHub release uploads turn spaces in asset names into dots (e.g. "Freelance.Timer.app.tar.gz").
+const uploadTarName = tarName.replaceAll(" ", ".");
+const url = `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(uploadTarName)}`;
 
 const latest = {
   version,
