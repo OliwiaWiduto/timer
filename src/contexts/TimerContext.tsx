@@ -89,7 +89,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [accumulatedMs, setAccumulatedMs] = useState(0);
   const [runStartedAt, setRunStartedAt] = useState<Date | null>(null);
   const [stopDraft, setStopDraft] = useState<StopDraft | null>(null);
-  const [tick, setTick] = useState(0);
+  const [, setTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -202,6 +202,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
+      // Refresh display immediately; background tabs throttle setInterval so tick can stall.
+      setTick((t) => t + 1);
       void fetchActiveTimer(uid)
         .then((row) => {
           if (!cancelled) applyRemoteRow(row);
@@ -251,10 +253,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     syncToServer,
   ]);
 
-  const elapsedMs = useMemo(() => {
-    if (phase === "idle" || !activeProjectId || !wallStartedAt) return 0;
-    return computeElapsedMs(phase, accumulatedMs, runStartedAt, Date.now());
-  }, [phase, activeProjectId, wallStartedAt, accumulatedMs, runStartedAt, tick, stopDraft]);
+  // Recompute every render with Date.now(); tick only forces periodic re-renders while running.
+  // useMemo here froze the clock when setInterval was throttled in a background tab/window.
+  const elapsedMs =
+    phase === "idle" || !activeProjectId || !wallStartedAt
+      ? 0
+      : computeElapsedMs(phase, accumulatedMs, runStartedAt, Date.now());
 
   const play = useCallback(
     (projectId: string) => {

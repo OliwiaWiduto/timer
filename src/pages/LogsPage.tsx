@@ -3,9 +3,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/types/database";
-import { formatHoursMinutes } from "@/lib/format";
+import { formatHoursMinutes, formatMoney } from "@/lib/format";
 import { IconChevronLeft, IconTrash } from "@/components/icons";
-import { format } from "date-fns";
+import { endOfMonth, format, isWithinInterval, startOfMonth } from "date-fns";
+import { DeleteSessionConfirmModal } from "@/components/DeleteSessionConfirmModal";
 import { EditSessionModal } from "@/components/EditSessionModal";
 import { Toast } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
@@ -13,11 +14,19 @@ import { useToast } from "@/hooks/useToast";
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"] & {
   projects: Pick<
     Database["public"]["Tables"]["projects"]["Row"],
-    "name" | "avatar_color" | "avatar_initial" | "id"
+    "name" | "avatar_color" | "avatar_initial" | "id" | "hourly_rate" | "currency"
   > | null;
 };
 
 import { projectAvatarDisplay } from "@/lib/projectAvatar";
+
+const DELETE_CONFIRM_THRESHOLD_SECONDS = 600;
+
+function formatSummaryHours(hours: number): string {
+  const rounded = Math.round(hours * 10) / 10;
+  const n = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `${n} hour${rounded === 1 ? "" : "s"}`;
+}
 
 export function LogsPage() {
   const { user } = useAuth();
@@ -30,6 +39,7 @@ export function LogsPage() {
   const { toast, showToast } = useToast(2000);
   const [editOpen, setEditOpen] = useState(false);
   const [editSession, setEditSession] = useState<Database["public"]["Tables"]["sessions"]["Row"] | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SessionRow | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -37,7 +47,7 @@ export function LogsPage() {
     setError(null);
     const { data, error } = await supabase
       .from("sessions")
-      .select("*, projects(id, name, avatar_color, avatar_initial)")
+      .select("*, projects(id, name, avatar_color, avatar_initial, hourly_rate, currency)")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) {
@@ -49,24 +59,31 @@ export function LogsPage() {
   }, [user]);
 
   const onDelete = useCallback(
-    async (id: string) => {
-      if (!user) return;
+    async (id: string): Promise<boolean> => {
+      if (!user) return false;
       setBusyId(id);
       const { error } = await supabase.from("sessions").delete().eq("id", id);
       setBusyId(null);
       if (error) {
         console.error(error);
-        const msg =
-          (error as unknown as { code?: string }).code === "23503" ||
-          error.message.includes("invoice_lines_session_id_fkey")
-            ? "This session is on an invoice and can’t be deleted."
-            : error.message;
-        showToast(msg);
-        return;
+        showToast(error.message);
+        return false;
       }
       setRows((prev) => prev.filter((r) => r.id !== id));
+      return true;
     },
     [user, showToast],
+  );
+
+  const requestDelete = useCallback(
+    (session: SessionRow) => {
+      if (session.duration_seconds > DELETE_CONFIRM_THRESHOLD_SECONDS) {
+        setDeleteTarget(session);
+        return;
+      }
+      void onDelete(session.id);
+    },
+    [onDelete],
   );
 
   useEffect(() => {
@@ -91,6 +108,31 @@ export function LogsPage() {
   const filtered = useMemo(() => {
     if (projectFilter === "all") return rows;
     return rows.filter((r) => String(r.project_id) === projectFilter);
+  }, [rows, projectFilter]);
+
+  const monthSummary = useMemo(() => {
+    if (projectFilter === "all") return null;
+    const now = new Date();
+    const monthInterval = { start: startOfMonth(now), end: endOfMonth(now) };
+    let totalSeconds = 0;
+    let hourlyRate = 0;
+    let currency = "GBP";
+    for (const r of rows) {
+      if (String(r.project_id) !== projectFilter) continue;
+      if (r.projects) {
+        hourlyRate = Number(r.projects.hourly_rate);
+        currency = r.projects.currency ?? "GBP";
+      }
+      const started = new Date(r.started_at);
+      if (!isWithinInterval(started, monthInterval)) continue;
+      totalSeconds += r.duration_seconds;
+    }
+    const hours = totalSeconds / 3600;
+    return {
+      hours,
+      money: hours * hourlyRate,
+      currency,
+    };
   }, [rows, projectFilter]);
 
   const invoiceProjectId = projectFilter !== "all" ? projectFilter : projectOptions[0]?.[0];
@@ -166,6 +208,21 @@ export function LogsPage() {
               ))}
             </div>
           </div>
+
+          {projectFilter !== "all" && !loading && monthSummary ? (
+            <div
+              className="sv-label sv-label--muted"
+              style={{
+                fontFamily: "Inter",
+                fontSize: 13,
+                lineHeight: "18px",
+                padding: "8px 0 4px 16px",
+              }}
+            >
+              This month: {formatSummaryHours(monthSummary.hours)} ·{" "}
+              {formatMoney(monthSummary.money, monthSummary.currency)}
+            </div>
+          ) : null}
 
           {error ? (
             <div className="sv-row" style={{ borderBottom: "none" }}>
@@ -248,11 +305,7 @@ export function LogsPage() {
                       disabled={busyId === r.id}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (r.billing_status === "billed" || r.invoice_id) {
-                          showToast("This session is on an invoice and can’t be deleted.");
-                          return;
-                        }
-                        void onDelete(r.id);
+                        requestDelete(r);
                       }}
                     >
                       <IconTrash size={16} />
@@ -271,6 +324,19 @@ export function LogsPage() {
               setRows((prev) => prev.map((r) => (r.id === next.id ? ({ ...r, ...next } as SessionRow) : r)));
             }}
           />
+
+          {deleteTarget ? (
+            <DeleteSessionConfirmModal
+              session={deleteTarget}
+              busy={busyId === deleteTarget.id}
+              onKeep={() => setDeleteTarget(null)}
+              onConfirm={() => {
+                void onDelete(deleteTarget.id).then((ok) => {
+                  if (ok) setDeleteTarget(null);
+                });
+              }}
+            />
+          ) : null}
 
           <Toast message={toast} />
         </div>

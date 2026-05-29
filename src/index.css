@@ -483,6 +483,11 @@ th {
   background: var(--sv-primary);
 }
 
+.sv-btn--danger {
+  background: #c0392b;
+  color: #fff;
+}
+
 .sv-color-swatches {
   display: flex;
   flex-wrap: wrap;
