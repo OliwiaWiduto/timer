@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { IconChevronLeft } from "@/components/icons";
+import { IconClose } from "@/components/icons";
 import { formatHoursMinutes } from "@/lib/format";
 import type { Database } from "@/types/database";
 
@@ -43,6 +43,7 @@ export function EditSessionModal({ open, session, onClose, onSaved }: Props) {
   const { user } = useAuth();
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +51,7 @@ export function EditSessionModal({ open, session, onClose, onSaved }: Props) {
     if (!open || !session) return;
     setStart(toLocalDateTimeInputValue(new Date(session.started_at)));
     setEnd(toLocalDateTimeInputValue(new Date(session.ended_at)));
+    setDescription(session.description);
     setError(null);
     setBusy(false);
   }, [open, session?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -82,6 +84,7 @@ export function EditSessionModal({ open, session, onClose, onSaved }: Props) {
         started_at: startedAt.toISOString(),
         ended_at: endedAt.toISOString(),
         duration_seconds: seconds,
+        description: description.trim(),
       })
       .eq("id", session.id)
       .select("*")
@@ -98,21 +101,28 @@ export function EditSessionModal({ open, session, onClose, onSaved }: Props) {
   return (
     <div className="sv-overlay" role="dialog" aria-modal="true" aria-label="Edit session">
       <div className="sv-modal">
-        <div className="sv-header">
-          <img className="sv-header__icon" src="/logo.png" alt="Studio Voodoo" />
-          <div className="sv-header__title">Studio Voodoo Timer</div>
-        </div>
-
         <div className="sv-topbar">
-          <button type="button" className="sv-icon-btn sv-icon-btn--ghost" onClick={onClose} aria-label="Back" disabled={busy}>
-            <IconChevronLeft />
-          </button>
           <div className="sv-topbar__title">Edit session</div>
-          <div style={{ width: 24 }} aria-hidden="true" />
+          <button type="button" className="sv-icon-btn sv-icon-btn--ghost" onClick={onClose} aria-label="Close" disabled={busy}>
+            <IconClose />
+          </button>
         </div>
 
         <div className="sv-form">
           <label style={{ display: "grid", gap: 8 }}>
+            <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
+              Description
+            </span>
+            <textarea
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What you worked on"
+              style={{ resize: "none" }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 8, marginTop: 10 }}>
             <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
               Start
             </span>

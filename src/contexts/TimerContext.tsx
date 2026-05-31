@@ -231,10 +231,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       skipNextPersistRef.current = false;
       return;
     }
-    if (phase === "idle" && !stopDraft) {
-      void syncToServer(null, null);
-      return;
-    }
+    // Never push "idle" to the server here — an idle device must not delete another
+    // machine's running timer. Clear only from completeStopAfterSave / clear().
     if (phase === "idle" || !activeProjectId || !wallStartedAt) return;
 
     void syncToServer(
@@ -345,7 +343,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setWallStartedAt(null);
     setAccumulatedMs(0);
     setRunStartedAt(null);
-  }, []);
+    void syncToServer(null, null);
+  }, [syncToServer]);
 
   const clear = useCallback(() => {
     setStopDraft(null);
@@ -354,7 +353,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setWallStartedAt(null);
     setAccumulatedMs(0);
     setRunStartedAt(null);
-  }, []);
+    void syncToServer(null, null);
+  }, [syncToServer]);
 
   const value = useMemo<TimerContextValue>(
     () => ({
