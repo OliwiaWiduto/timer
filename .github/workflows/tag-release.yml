@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   tag-version:
@@ -43,14 +44,29 @@ jobs:
           echo "tag=v$PKG" >> "$GITHUB_OUTPUT"
 
       - name: Push tag if missing
+        id: tag
         env:
           TAG: ${{ steps.ver.outputs.tag }}
         run: |
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists — nothing to do."
+            echo "Tag $TAG already exists."
+            echo "created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "$TAG"
           git push origin "$TAG"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      # Tags pushed with GITHUB_TOKEN do not trigger other workflows; dispatch Release explicitly.
+      - name: Trigger Release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — skipping."
+            exit 0
+          fi
+          gh workflow run release.yml --ref "$TAG"
