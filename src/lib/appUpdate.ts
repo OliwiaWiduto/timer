@@ -12,7 +12,7 @@ export async function checkForAppUpdate(): Promise<void> {
 
     const notes = update.body?.trim();
     const message = [
-      `Freelance Timer ${update.version} is available.`,
+      `Studio Voodoo Timer ${update.version} is available.`,
       notes ? `\n${notes}` : "",
       "\n\nInstall now? The app will restart.",
     ].join("");

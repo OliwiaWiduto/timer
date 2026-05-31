@@ -4,7 +4,7 @@
 
 ### Overview
 
-Freelance Timer is a Tauri 2 + React + TypeScript desktop time-tracking app backed by Supabase (Postgres + Auth + RLS). For development, the frontend runs in the browser via Vite; the Tauri native shell is optional.
+Studio Voodoo Timer is a Tauri 2 + React + TypeScript desktop time-tracking app backed by Supabase (Postgres + Auth + RLS). For development, the frontend runs in the browser via Vite; the Tauri native shell is optional.
 
 ### Running services
 

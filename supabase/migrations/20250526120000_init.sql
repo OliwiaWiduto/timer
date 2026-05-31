@@ -1,4 +1,4 @@
--- Freelance Timer schema: projects, sessions, invoices (per project), invoice lines.
+-- Studio Voodoo Timer schema: projects, sessions, invoices (per project), invoice lines.
 -- Run in Supabase SQL editor or via supabase db push.
 
 create extension if not exists "pgcrypto";

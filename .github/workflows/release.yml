@@ -51,10 +51,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Freelance Timer ${{ github.ref_name }}
+          name: Studio Voodoo Timer ${{ github.ref_name }}
           body: macOS (Apple Silicon) build with in-app auto-update.
           draft: false
           files: |
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Freelance Timer.app.tar.gz
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Freelance Timer.app.tar.gz.sig
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Studio Voodoo Timer.app.tar.gz
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Studio Voodoo Timer.app.tar.gz.sig
             latest.json

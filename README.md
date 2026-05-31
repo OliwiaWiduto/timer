@@ -1,4 +1,4 @@
-# Freelance Timer
+# Studio Voodoo Timer
 
 Desktop time tracking for freelancers: **Tauri 2** + **React** + **TypeScript** on the front end, **Supabase** (Postgres + Auth + Row Level Security) on the back end.
 
@@ -51,7 +51,7 @@ npm run tauri:build  # Platform app bundle
 
 ## Desktop releases & auto-update
 
-macOS builds and in-app updates use GitHub Releases. See **[docs/RELEASES.md](docs/RELEASES.md)** for signing keys, GitHub secrets, and how to publish `v*` tags.
+macOS builds and in-app updates use GitHub Releases. Bump the version on `main` to trigger CI (see **[docs/RELEASES.md](docs/RELEASES.md)** for signing keys and secrets).
 
 ## Notes
 

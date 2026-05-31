@@ -12,6 +12,12 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  function switchMode(next: "signin" | "signup") {
+    setMode(next);
+    setError(null);
+    setMessage(null);
+  }
+
   if (!isSupabaseConfigured) {
     return (
       <div className="sv-app">
@@ -67,26 +73,14 @@ export function LoginPage() {
         </div>
 
         <div className="sv-form">
-          <div style={{ display: "flex", gap: 10 }}>
-            <button
-              type="button"
-              className={`sv-btn ${mode === "signin" ? "sv-btn--primary" : ""}`}
-              onClick={() => setMode("signin")}
-              style={{ flex: 1 }}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              className={`sv-btn ${mode === "signup" ? "sv-btn--primary" : ""}`}
-              onClick={() => setMode("signup")}
-              style={{ flex: 1 }}
-            >
-              Create account
-            </button>
+          <div
+            className="sv-topbar__title"
+            style={{ fontSize: 20, fontWeight: 500, fontFamily: '"Crimson Pro", serif' }}
+          >
+            {mode === "signin" ? "Sign in" : "Create Account"}
           </div>
 
-          <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+          <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 4 }}>
             <label style={{ display: "grid", gap: 8 }}>
               <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
                 Email
@@ -121,9 +115,26 @@ export function LoginPage() {
             </button>
           </form>
 
-          <Link to="/" className="sv-link">
-            Back
-          </Link>
+          <p
+            className="sv-label sv-label--muted"
+            style={{ fontFamily: "Inter", fontSize: 13, margin: 0, textAlign: "center" }}
+          >
+            {mode === "signin" ? (
+              <>
+                Don&apos;t have an account?{" "}
+                <button type="button" className="sv-link sv-link-btn" onClick={() => switchMode("signup")}>
+                  Sign up
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <button type="button" className="sv-link sv-link-btn" onClick={() => switchMode("signin")}>
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
         </div>
       </div>
     </div>

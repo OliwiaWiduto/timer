@@ -1,0 +1,56 @@
+# When version is bumped on main, create v{version} tag if it does not exist yet.
+# That tag push triggers the Release workflow (release.yml).
+name: Tag release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - src-tauri/tauri.conf.json
+      - src-tauri/Cargo.toml
+
+permissions:
+  contents: write
+
+jobs:
+  tag-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate version
+        id: ver
+        run: |
+          PKG=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
+          TAURI=$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json','utf8')).version")
+          CARGO=$(node -pe "
+            const fs = require('fs');
+            const m = fs.readFileSync('src-tauri/Cargo.toml', 'utf8').match(/^version = \"([^\"]+)\"/m);
+            m ? m[1] : '';
+          ")
+          if [ "$PKG" != "$TAURI" ]; then
+            echo "::error::package.json ($PKG) and tauri.conf.json ($TAURI) must match"
+            exit 1
+          fi
+          if [ -n "$CARGO" ] && [ "$PKG" != "$CARGO" ]; then
+            echo "::error::src-tauri/Cargo.toml ($CARGO) must match package.json ($PKG)"
+            exit 1
+          fi
+          echo "version=$PKG" >> "$GITHUB_OUTPUT"
+          echo "tag=v$PKG" >> "$GITHUB_OUTPUT"
+
+      - name: Push tag if missing
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"

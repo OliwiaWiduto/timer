@@ -11,7 +11,7 @@ if (!version || !repo || !bundleDir) {
   process.exit(1);
 }
 
-const tarName = "Freelance Timer.app.tar.gz";
+const tarName = "Studio Voodoo Timer.app.tar.gz";
 const tarPath = path.join(bundleDir, tarName);
 const sigPath = `${tarPath}.sig`;
 
@@ -21,7 +21,7 @@ if (!fs.existsSync(tarPath) || !fs.existsSync(sigPath)) {
 }
 
 const signature = fs.readFileSync(sigPath, "utf8").trim();
-// GitHub release uploads turn spaces in asset names into dots (e.g. "Freelance.Timer.app.tar.gz").
+// GitHub release uploads turn spaces in asset names into dots (e.g. "Studio.Voodoo.Timer.app.tar.gz").
 const uploadTarName = tarName.replaceAll(" ", ".");
 const url = `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(uploadTarName)}`;
 
