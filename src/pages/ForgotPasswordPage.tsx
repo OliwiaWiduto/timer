@@ -1,25 +1,14 @@
 import { useState } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-export function LoginPage() {
-  const { user, loading, signIn, signUp } = useAuth();
-  const location = useLocation();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+export function ForgotPasswordPage() {
+  const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(
-    (location.state as { message?: string } | null)?.message ?? null,
-  );
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  function switchMode(next: "signin" | "signup") {
-    setMode(next);
-    setError(null);
-    setMessage(null);
-  }
 
   if (!isSupabaseConfigured) {
     return (
@@ -36,17 +25,13 @@ export function LoginPage() {
             <div className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12 }}>
               Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to `.env`, then restart the dev server.
             </div>
-            <Link to="/" className="sv-link">
-              Home
+            <Link to="/login" className="sv-link">
+              Back to sign in
             </Link>
           </div>
         </div>
       </div>
     );
-  }
-
-  if (!loading && user) {
-    return <Navigate to="/" replace />;
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -55,11 +40,8 @@ export function LoginPage() {
     setMessage(null);
     setBusy(true);
     try {
-      if (mode === "signin") await signIn(email, password);
-      else {
-        await signUp(email, password);
-        setMessage("Check your email to confirm your account if required by your Supabase project.");
-      }
+      await requestPasswordReset(email);
+      setMessage("If an account exists for that email, we've sent a password reset link.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -80,8 +62,11 @@ export function LoginPage() {
             className="sv-topbar__title"
             style={{ fontSize: 20, fontWeight: 500, fontFamily: '"Crimson Pro", serif' }}
           >
-            {mode === "signin" ? "Sign in" : "Create Account"}
+            Reset password
           </div>
+          <p className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 13, margin: 0 }}>
+            Enter your email and we&apos;ll send you a link to choose a new password.
+          </p>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 4 }}>
             <label style={{ display: "grid", gap: 8 }}>
@@ -90,24 +75,6 @@ export function LoginPage() {
               </span>
               <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </label>
-            <label style={{ display: "grid", gap: 8 }}>
-              <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
-                Password
-              </span>
-              <input
-                type="password"
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </label>
-            {mode === "signin" ? (
-              <Link to="/forgot-password" className="sv-link" style={{ fontSize: 12, justifySelf: "end" }}>
-                Forgot password?
-              </Link>
-            ) : null}
             {error ? (
               <p style={{ color: "rgba(255,255,255,0.85)", margin: 0 }} role="alert">
                 {error}
@@ -118,8 +85,8 @@ export function LoginPage() {
                 {message}
               </p>
             ) : null}
-            <button type="submit" className="sv-btn sv-btn--primary" disabled={busy}>
-              {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+            <button type="submit" className="sv-btn sv-btn--primary" disabled={busy || Boolean(message)}>
+              {busy ? "Please wait…" : "Send reset link"}
             </button>
           </form>
 
@@ -127,21 +94,9 @@ export function LoginPage() {
             className="sv-label sv-label--muted"
             style={{ fontFamily: "Inter", fontSize: 13, margin: 0, textAlign: "center" }}
           >
-            {mode === "signin" ? (
-              <>
-                Don&apos;t have an account?{" "}
-                <button type="button" className="sv-link sv-link-btn" onClick={() => switchMode("signup")}>
-                  Sign up
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button type="button" className="sv-link sv-link-btn" onClick={() => switchMode("signin")}>
-                  Sign in
-                </button>
-              </>
-            )}
+            <Link to="/login" className="sv-link">
+              Back to sign in
+            </Link>
           </p>
         </div>
       </div>

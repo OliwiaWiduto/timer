@@ -2,6 +2,8 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { TimerProvider } from "@/contexts/TimerContext";
 import { LoginPage } from "@/pages/LoginPage";
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { MainPage } from "@/pages/MainPage";
 import { LogsPage } from "@/pages/LogsPage";
 import { InvoicePage } from "@/pages/InvoicePage";
@@ -54,6 +56,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       {import.meta.env.DEV ? <Route path="/invoice-preview" element={<InvoicePreviewPage />} /> : null}
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<MainPage />} />

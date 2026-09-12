@@ -1,12 +1,20 @@
 import type { InvoicePdfBuildArgs } from "@/lib/invoicePdf";
+import { DEFAULT_INVOICE_PAYABLE_TO } from "@/lib/invoiceDefaults";
 
 /** Sample data for `/invoice-preview` (dev only). */
 export const INVOICE_PREVIEW_MOCK: InvoicePdfBuildArgs = {
-  projectName: "Studio Voodoo Website",
-  clientName: "Acme Corp",
-  clientEmail: "billing@acme.example",
-  billingAddress: "123 High Street\nLondon\nEC1A 1BB",
-  invoiceNumber: 42,
+  projectName: "Love My Lounger",
+  submittedAt: new Date("2026-06-03T12:00:00.000Z").toISOString(),
+  dueDate: "2026-06-17",
+  invoiceNumber: 2,
+  invoiceFor: {
+    company: "Escape to the Sun",
+    street: "59-61 Charlotte Street",
+    city: "Birmingham",
+    country: "England",
+    postcode: "B3 1PX",
+  },
+  payableTo: DEFAULT_INVOICE_PAYABLE_TO,
   currency: "GBP",
   rate: 100,
   rows: [

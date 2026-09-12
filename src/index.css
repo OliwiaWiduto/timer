@@ -395,15 +395,41 @@ th {
   padding: 24px;
   background: rgba(0, 0, 0, 0.35);
   z-index: 50;
+  overflow-y: auto;
+}
+
+.sv-overlay--modal {
+  z-index: 200;
 }
 
 .sv-modal {
   width: 400px;
   max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
   border-radius: var(--sv-radius-card);
   background: var(--sv-bg);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sv-modal > .sv-header,
+.sv-modal > .sv-topbar {
+  flex-shrink: 0;
+}
+
+.sv-modal > .sv-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sv-modal > .sv-actions {
+  flex-shrink: 0;
   padding-bottom: 16px;
+  border-top: 1px solid var(--sv-border);
+  padding-top: 12px;
 }
 
 .sv-topbar {

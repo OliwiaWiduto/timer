@@ -17,6 +17,12 @@ export type Database = {
           client_name: string | null;
           client_email: string | null;
           billing_address: string | null;
+          invoice_to_company: string | null;
+          invoice_to_street: string | null;
+          invoice_to_city: string | null;
+          invoice_to_country: string | null;
+          invoice_to_postcode: string | null;
+          invoice_payable_to: string | null;
           hourly_rate: number;
           currency: string;
           avatar_color: string | null;
@@ -32,6 +38,12 @@ export type Database = {
           client_name?: string | null;
           client_email?: string | null;
           billing_address?: string | null;
+          invoice_to_company?: string | null;
+          invoice_to_street?: string | null;
+          invoice_to_city?: string | null;
+          invoice_to_country?: string | null;
+          invoice_to_postcode?: string | null;
+          invoice_payable_to?: string | null;
           hourly_rate?: number;
           currency?: string;
           avatar_color?: string | null;
@@ -47,6 +59,12 @@ export type Database = {
           client_name?: string | null;
           client_email?: string | null;
           billing_address?: string | null;
+          invoice_to_company?: string | null;
+          invoice_to_street?: string | null;
+          invoice_to_city?: string | null;
+          invoice_to_country?: string | null;
+          invoice_to_postcode?: string | null;
+          invoice_payable_to?: string | null;
           hourly_rate?: number;
           currency?: string;
           avatar_color?: string | null;
@@ -118,6 +136,7 @@ export type Database = {
           project_id: string;
           invoice_number: number;
           total_amount: number;
+          due_date: string | null;
           created_at: string;
         };
         Insert: {
@@ -126,6 +145,7 @@ export type Database = {
           project_id: string;
           invoice_number: number;
           total_amount?: number;
+          due_date?: string | null;
           created_at?: string;
         };
         Update: {
@@ -134,6 +154,7 @@ export type Database = {
           project_id?: string;
           invoice_number?: number;
           total_amount?: number;
+          due_date?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -236,7 +257,12 @@ export type Database = {
     Views: Record<string, never>;
     Functions: {
       finalize_invoice: {
-        Args: { p_project_id: string; p_session_ids: string[] };
+        Args: {
+          p_project_id: string;
+          p_session_ids: string[];
+          p_invoice_number?: number | null;
+          p_due_date?: string | null;
+        };
         Returns: string;
       };
     };

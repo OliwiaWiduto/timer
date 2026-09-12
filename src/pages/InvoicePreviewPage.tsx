@@ -8,10 +8,15 @@ export function InvoicePreviewPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    const doc = buildInvoicePdfDoc(INVOICE_PREVIEW_MOCK);
-    const url = String(doc.output("bloburl"));
-    setPdfUrl(url);
-    return () => URL.revokeObjectURL(url);
+    let revokeUrl: string | null = null;
+    void buildInvoicePdfDoc(INVOICE_PREVIEW_MOCK).then((doc) => {
+      const url = String(doc.output("bloburl"));
+      revokeUrl = url;
+      setPdfUrl(url);
+    });
+    return () => {
+      if (revokeUrl) URL.revokeObjectURL(revokeUrl);
+    };
   }, [refreshKey]);
 
   return (

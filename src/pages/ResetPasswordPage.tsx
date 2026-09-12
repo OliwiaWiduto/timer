@@ -1,25 +1,15 @@
 import { useState } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-export function LoginPage() {
-  const { user, loading, signIn, signUp } = useAuth();
-  const location = useLocation();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
+export function ResetPasswordPage() {
+  const { session, loading, updatePassword } = useAuth();
+  const navigate = useNavigate();
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(
-    (location.state as { message?: string } | null)?.message ?? null,
-  );
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  function switchMode(next: "signin" | "signup") {
-    setMode(next);
-    setError(null);
-    setMessage(null);
-  }
 
   if (!isSupabaseConfigured) {
     return (
@@ -36,8 +26,8 @@ export function LoginPage() {
             <div className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12 }}>
               Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to `.env`, then restart the dev server.
             </div>
-            <Link to="/" className="sv-link">
-              Home
+            <Link to="/login" className="sv-link">
+              Back to sign in
             </Link>
           </div>
         </div>
@@ -45,21 +35,41 @@ export function LoginPage() {
     );
   }
 
-  if (!loading && user) {
-    return <Navigate to="/" replace />;
+  if (loading) {
+    return (
+      <div className="sv-app">
+        <div className="sv-card" style={{ width: 420 }}>
+          <p className="sv-label sv-label--muted" style={{ margin: 0 }}>
+            Loading…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ message: "Reset link is invalid or has expired. Request a new one from the sign-in page." }}
+      />
+    );
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setMessage(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setBusy(true);
     try {
-      if (mode === "signin") await signIn(email, password);
-      else {
-        await signUp(email, password);
-        setMessage("Check your email to confirm your account if required by your Supabase project.");
-      }
+      await updatePassword(password);
+      navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -80,46 +90,43 @@ export function LoginPage() {
             className="sv-topbar__title"
             style={{ fontSize: 20, fontWeight: 500, fontFamily: '"Crimson Pro", serif' }}
           >
-            {mode === "signin" ? "Sign in" : "Create Account"}
+            Choose a new password
           </div>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 4 }}>
             <label style={{ display: "grid", gap: 8 }}>
               <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
-                Email
-              </span>
-              <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </label>
-            <label style={{ display: "grid", gap: 8 }}>
-              <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
-                Password
+                New password
               </span>
               <input
                 type="password"
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
               />
             </label>
-            {mode === "signin" ? (
-              <Link to="/forgot-password" className="sv-link" style={{ fontSize: 12, justifySelf: "end" }}>
-                Forgot password?
-              </Link>
-            ) : null}
+            <label style={{ display: "grid", gap: 8 }}>
+              <span className="sv-label sv-label--muted" style={{ fontFamily: "Inter", fontSize: 12, letterSpacing: 0.4 }}>
+                Confirm password
+              </span>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </label>
             {error ? (
               <p style={{ color: "rgba(255,255,255,0.85)", margin: 0 }} role="alert">
                 {error}
               </p>
             ) : null}
-            {message ? (
-              <p style={{ color: "rgba(255,255,255,0.85)", margin: 0 }} role="status">
-                {message}
-              </p>
-            ) : null}
             <button type="submit" className="sv-btn sv-btn--primary" disabled={busy}>
-              {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+              {busy ? "Please wait…" : "Update password"}
             </button>
           </form>
 
@@ -127,21 +134,9 @@ export function LoginPage() {
             className="sv-label sv-label--muted"
             style={{ fontFamily: "Inter", fontSize: 13, margin: 0, textAlign: "center" }}
           >
-            {mode === "signin" ? (
-              <>
-                Don&apos;t have an account?{" "}
-                <button type="button" className="sv-link sv-link-btn" onClick={() => switchMode("signup")}>
-                  Sign up
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button type="button" className="sv-link sv-link-btn" onClick={() => switchMode("signin")}>
-                  Sign in
-                </button>
-              </>
-            )}
+            <Link to="/login" className="sv-link">
+              Back to sign in
+            </Link>
           </p>
         </div>
       </div>

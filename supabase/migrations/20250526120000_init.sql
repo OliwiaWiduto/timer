@@ -34,8 +34,7 @@ create table public.invoices (
   project_id uuid not null references public.projects (id) on delete cascade,
   invoice_number integer not null,
   total_amount numeric(14, 2) not null default 0,
-  created_at timestamptz not null default now(),
-  unique (user_id, invoice_number)
+  created_at timestamptz not null default now()
 );
 
 create index invoices_user_project on public.invoices (user_id, project_id);
@@ -65,8 +64,7 @@ create table public.invoice_lines (
   hours numeric(14, 6) not null,
   rate numeric(12, 2) not null,
   line_total numeric(14, 2) not null,
-  created_at timestamptz not null default now(),
-  unique (session_id)
+  created_at timestamptz not null default now()
 );
 
 create index invoice_lines_invoice on public.invoice_lines (invoice_id);
@@ -109,13 +107,9 @@ begin
     select 1
     from public.sessions s
     where s.id = any (p_session_ids)
-      and (
-        s.user_id <> v_user
-        or s.project_id <> p_project_id
-        or s.billing_status <> 'unbilled'
-      )
+      and (s.user_id <> v_user or s.project_id <> p_project_id)
   ) then
-    raise exception 'Invalid or already billed session in selection';
+    raise exception 'Invalid session in selection';
   end if;
 
   if (

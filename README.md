@@ -7,7 +7,7 @@ Desktop time tracking for freelancers: **Tauri 2** + **React** + **TypeScript** 
 - **Projects** with hourly rate, currency, and optional client details for invoices.
 - **Timer** per project: **Play**, **Pause**, and **Stop (✕)**. Stop opens a sheet to **describe the session** before it is saved.
 - **Time logs** across all projects with optional project filter.
-- **Invoices (per project)** that default to **unbilled sessions only**, optional date range filter, multi-select, **atomic billing** via a Postgres RPC, and **PDF download** (jsPDF).
+- **Invoices (per project)** with optional date range filter, multi-select, **atomic billing** via a Postgres RPC, and **PDF download** (jsPDF).
 - **Project list** sorted by **most recently logged** time (`last_logged_at`).
 
 ## Prerequisites
@@ -26,7 +26,8 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicat
 1. Create a project at [https://supabase.com](https://supabase.com).
 2. In the SQL editor (or CLI), run the migration in `supabase/migrations/20250526120000_init.sql`.
 3. Enable **Email** auth (sign-in and sign-up) under Authentication → Providers.
-4. Copy **Project URL** and **anon public key** from Project Settings → API.
+4. Under Authentication → URL Configuration, add redirect URLs for password reset (e.g. `http://localhost:5173/reset-password` and your production URL).
+5. Copy **Project URL** and **anon public key** from Project Settings → API.
 
 ## Environment
 
@@ -55,5 +56,5 @@ macOS builds and in-app updates use GitHub Releases. Bump the version on `main` 
 
 ## Notes
 
-- **Billing**: `finalize_invoice` marks selected sessions as billed and creates `invoices` + `invoice_lines` in one transaction. Only `billing_status = unbilled` rows for the chosen project are accepted.
+- **Billing**: `finalize_invoice` creates `invoices` + `invoice_lines` for any selected sessions in the date range (sessions can appear on multiple invoices).
 - **PDFs** are generated in the client and downloaded; you can later add Supabase Storage upload if you want cloud copies.

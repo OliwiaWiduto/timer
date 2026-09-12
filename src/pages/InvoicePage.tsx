@@ -3,7 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/types/database";
+import { CreateInvoiceModal } from "@/components/CreateInvoiceModal";
 import { downloadInvoicePdf } from "@/lib/invoicePdf";
+import { projectUpdateFromForm, type InvoiceFormValues } from "@/lib/invoiceForm";
 import { formatClock, formatDateTime, formatMoney, formatShortDate } from "@/lib/format";
 import { IconChevronLeft } from "@/components/icons";
 import { Toast } from "@/components/Toast";
@@ -91,12 +93,13 @@ export function InvoicePage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(() => getMonthRangeIso().startIso);
   const [endDate, setEndDate] = useState(() => getMonthRangeIso().endIso);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const { toast, showToast } = useToast(2000);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState(1);
+  const { toast } = useToast(2000);
 
   const load = useCallback(async () => {
     if (!user || !projectId) return;
@@ -177,28 +180,57 @@ export function InvoicePage() {
     else setSelected(new Set());
   }
 
-  async function onCreateInvoice() {
-    if (!projectId || !project) return;
-    const ids = [...selected];
-    if (!ids.length) {
+  function openCreateInvoiceModal() {
+    if (!project) return;
+    if (selected.size === 0) {
       setError("Select at least one session.");
       return;
     }
-    setBusy(true);
     setError(null);
+    const fromHistory =
+      invoices.length > 0 ? Math.max(...invoices.map((i) => i.invoice_number)) + 1 : 1;
+    setNextInvoiceNumber(fromHistory);
+    setInvoiceModalOpen(true);
+
+    if (!user) return;
+    void supabase
+      .from("invoices")
+      .select("invoice_number")
+      .order("invoice_number", { ascending: false })
+      .limit(1)
+      .then(({ data, error: numErr }) => {
+        if (numErr || !data?.length) return;
+        setNextInvoiceNumber(data[0].invoice_number + 1);
+      });
+  }
+
+  async function onCreateInvoice(form: InvoiceFormValues) {
+    if (!projectId || !project) return;
+    const ids = [...selected];
+    if (!ids.length) {
+      throw new Error("Select at least one session.");
+    }
+
+    const { data: updatedProject, error: projErr } = await supabase
+      .from("projects")
+      .update(projectUpdateFromForm(form))
+      .eq("id", projectId)
+      .select("*")
+      .single();
+    if (projErr || !updatedProject) {
+      throw new Error(projErr?.message ?? "Failed to save invoice details.");
+    }
+    setProject(updatedProject);
+
     const { data: invoiceId, error: rpcErr } = await supabase.rpc("finalize_invoice", {
       p_project_id: projectId,
       p_session_ids: ids,
+      p_invoice_number: form.invoiceNumber,
+      p_due_date: form.dueDate,
     });
     if (rpcErr || !invoiceId) {
       const msg = rpcErr?.message ?? "Could not create invoice.";
-      if (msg.includes("Invalid or already billed session in selection")) {
-        showToast("Invalid or already billed session in selection");
-      } else {
-        setError(msg);
-      }
-      setBusy(false);
-      return;
+      throw new Error(msg);
     }
 
     const { data: inv, error: invErr } = await supabase.from("invoices").select("*").eq("id", invoiceId).single();
@@ -206,11 +238,8 @@ export function InvoicePage() {
       .from("invoice_lines")
       .select("*, sessions(*)")
       .eq("invoice_id", invoiceId);
-    setBusy(false);
     if (invErr || lineErr || !inv || !lines) {
-      setError(invErr?.message ?? lineErr?.message ?? "Invoice created but PDF download failed.");
-      await load();
-      return;
+      throw new Error(invErr?.message ?? lineErr?.message ?? "Invoice created but PDF download failed.");
     }
 
     const pdfRows = lines
@@ -227,21 +256,23 @@ export function InvoicePage() {
       })
       .filter(Boolean) as Parameters<typeof downloadInvoicePdf>[0]["rows"];
 
-    downloadInvoicePdf(
+    await downloadInvoicePdf(
       {
-        projectName: project.name,
-        clientName: project.client_name,
-        clientEmail: project.client_email,
-        billingAddress: project.billing_address,
+        projectName: updatedProject.name,
+        submittedAt: inv.created_at,
+        dueDate: form.dueDate,
         invoiceNumber: inv.invoice_number,
-        currency: project.currency,
-        rate: Number(project.hourly_rate),
+        invoiceFor: form.recipient,
+        payableTo: form.payableTo,
+        currency: updatedProject.currency,
+        rate: Number(updatedProject.hourly_rate),
         rows: pdfRows,
         total: Number(inv.total_amount),
       },
-      `invoice-${inv.invoice_number}.pdf`,
+      `invoice-${inv.invoice_number}-${inv.id.slice(0, 8)}.pdf`,
     );
 
+    setInvoiceModalOpen(false);
     await load();
   }
 
@@ -395,10 +426,10 @@ export function InvoicePage() {
                   <button
                     type="button"
                     className="sv-btn sv-btn--primary"
-                    disabled={busy || selectedList.length === 0}
-                    onClick={() => void onCreateInvoice()}
+                    disabled={selectedList.length === 0}
+                    onClick={openCreateInvoiceModal}
                   >
-                    {busy ? "Working…" : "Create invoice + download PDF"}
+                    Create invoice + download PDF
                   </button>
                 </>
               )}
@@ -431,6 +462,13 @@ export function InvoicePage() {
           ) : null}
         </div>
       </div>
+      <CreateInvoiceModal
+        open={invoiceModalOpen}
+        project={project}
+        nextInvoiceNumber={nextInvoiceNumber}
+        onClose={() => setInvoiceModalOpen(false)}
+        onConfirm={onCreateInvoice}
+      />
       <Toast message={toast} />
     </div>
   );
